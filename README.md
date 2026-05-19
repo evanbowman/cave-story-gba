@@ -1,5 +1,8 @@
 # Cave Story GBA
-![Picture](preview.jpg)
+<table><tr>
+<td><img src="preview.jpg" alt="Picture"></td>
+<td><img src="doc/IMG_7290.jpeg" alt="img"><br>luraichu said put this image on the github or i die</td>
+</tr></table>
 
 Work in progress port of [Cave Story MD by andwn](https://github.com/andwn/cave-story-md), for the GBA.
 
