@@ -640,53 +640,63 @@ void vdp_load_stage_palettes() {
 }
 
 __attribute__((hot)) IWRAM_CODE void vdp_sprites_update() {
-	if(!sprite_count) return;
+    if(!sprite_count) return;
 	//iprintf("%d %d\n", (&SPR_Quote)->animations[0]->frames[0]->w, (&SPR_Quote)->animations[0]->frames[0]->h);
 	sprite_table[sprite_count - 1].link = 0; // Mark end of sprite list
 
-	for(int i=0;i<sprite_count;i++)
-	{
-		uint8_t gen_size = sprite_table[i].size & 0x0F;
-		uint8_t gba_size = GBA_SPRITE_SIZES[gen_size];
 
-		char shape_bits = gba_size >> 2;
-		char size_bits = gba_size & 3;
-
-		obj_buffer[i].attr0 = OBJ_Y(sprite_table[i].y - 128) | OBJ_SHAPE(shape_bits);
-		obj_buffer[i].attr1 = OBJ_X(sprite_table[i].x - 128) | OBJ_SIZE(size_bits);
-		if(IsBitSet(sprite_table[i].attr, 11))
-			obj_buffer[i].attr1 |= OBJ_HFLIP;
-		if(IsBitSet(sprite_table[i].attr, 12))
-			obj_buffer[i].attr1 |= OBJ_VFLIP;
-
-		int prio = (sprite_table[i].attr & 0x8000) ? 0 : 2;
-
-    	int pal = sprite_table[i].size >> 4;
-    	if (pal == 0) {
-    	    // Fallback to the standard Genesis 2-bit palette if none was provided
-    	    pal = (sprite_table[i].attr >> 13) & 3;
-    	}
-
-    	obj_buffer[i].attr2 = OBJ_PRIORITY(prio)
-    	    | OBJ_CHAR((sprite_table[i].attr&0x7FF)+0)
-    	    | OBJ_PALETTE(pal);
-	}
-	// load the palette for the background, 7 colors
-    if (gamemode == GM_TITLE || gamemode == GM_SAVESEL || gamemode == GM_CONFIG) {
-        BG_COLORS[0] = saturate_color((4 | (4 << 5) | (4 << 10)));
-	} else if (gamemode == GM_GAME) {
-		BG_COLORS[0] = saturate_color((0 | (0 << 5) | (4 << 10)));
-	} else {
-        BG_COLORS[0] = saturate_color(palette[0]); // Default back to black
+    // --- Insertion sort: high priority (bit 15 set) first ---
+    for (int i = 1; i < sprite_count; i++) {
+        VDPSprite key = sprite_table[i];
+        int key_prio = (key.attr & 0x8000) ? 0 : 2; // 0 = high, 2 = low
+        int j = i - 1;
+        while (j >= 0 && ((sprite_table[j].attr & 0x8000) ? 0 : 2) > key_prio) {
+            sprite_table[j + 1] = sprite_table[j];
+            j--;
+        }
+        sprite_table[j + 1] = key;
     }
 
-	DMA3COPY(obj_buffer, OAM, ((sizeof(OBJATTR)*128)/2));
+    for(int i = 0; i < sprite_count; i++)
+    {
+        uint16_t attr    = sprite_table[i].attr;
+        uint8_t  gen_size = sprite_table[i].size & 0x0F;
+        uint8_t  gba_size = GBA_SPRITE_SIZES[gen_size];
 
-	for (u8 i = 0; i < 128; i++)
-		obj_buffer[i].attr0 = OBJ_DISABLE;
+        char shape_bits = gba_size >> 2;
+        char size_bits  = gba_size & 3;
+
+        int pal = sprite_table[i].size >> 4;
+        if (!pal) pal = (attr >> 13) & 3;
+
+        int prio = (attr & 0x8000) ? 0 : 2;
+
+        obj_buffer[i].attr0 = OBJ_Y(sprite_table[i].y - 128) | OBJ_SHAPE(shape_bits);
+        obj_buffer[i].attr1 = OBJ_X(sprite_table[i].x - 128) | OBJ_SIZE(size_bits)
+                            | ((attr & (1 << 11)) ? OBJ_HFLIP : 0)
+                            | ((attr & (1 << 12)) ? OBJ_VFLIP : 0);
+        obj_buffer[i].attr2 = OBJ_PRIORITY(prio)
+                            | OBJ_CHAR(attr & 0x7FF)
+                            | OBJ_PALETTE(pal);
+    }
+
+    DMA3COPY(obj_buffer, OAM, ((sizeof(OBJATTR)*128)/2));
+
+        // load the palette for the background, 7 colors
+    if (gamemode == GM_TITLE || gamemode == GM_SAVESEL || gamemode == GM_CONFIG) {
+        BG_COLORS[0] = saturate_color((4 | (4 << 5) | (4 << 10)));
+    } else if (gamemode == GM_GAME) {
+        BG_COLORS[0] = saturate_color((0 | (0 << 5) | (4 << 10)));
+    } else {
+        BG_COLORS[0] = saturate_color(palette[0]);  // Default back to black
+    }
 
 	//vdp_dma_vram((uint32_t) sprite_table, VDP_SPRITE_TABLE, sprite_count << 2);
-	sprite_count = 0;
+
+    for (u8 i = 0; i < 128; i++)
+        obj_buffer[i].attr0 = OBJ_DISABLE;
+
+    sprite_count = 0;
 	/*for(int i=0;i<SPR_Balrog.animations[0]->frames[0]->numSprite;i++)
 	{
 		printf("Balrog %d, x %d y %d s %d n %d\n", i, SPR_Balrog.animations[0]->frames[0]->vdpSpritesInf[i]->x,
