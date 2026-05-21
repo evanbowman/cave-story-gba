@@ -1,3 +1,5 @@
+#include <stdbool.h>
+
 #pragma once
 /*
  * "Stage" refers to a level map. SGDK has a "Map" structure that is not used here,
