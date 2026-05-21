@@ -125,9 +125,7 @@ animFrame_* getAnimFrame(unsigned char *image8bpp, int wi, int fx, int fy, int w
 
 	frameSprite_ preList[128] = {0};
 
-	int size = spriteOrder[i];
-	int size_w = spriteDimensions[size][0];
-	int size_h = spriteDimensions[size][1];
+	int size, size_w, size_h;
 
 	//Get square that fits into topleft corner of sprite dimensions
 	int remain_h = hf;
