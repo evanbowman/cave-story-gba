@@ -430,13 +430,13 @@ void ai_boss_misery(Entity *e) {
 		{
 			e->y_speed += (e->y < e->y_mark) ? 0x20 : -0x20;
 			LIMIT_Y(0x200);
-			
-			if(++timer3 > 24) {
+
+			if(++timer3 >= 24) {
 				timer3 = 0;
 				entity_create(e->x, e->y+(4<<CSF), OBJ_MISERY_BALL, 0);
 				sound_play(SND_FIREBALL, 3);
 			}
-			
+
 			if(++e->timer > 72) {
 				e->state = 100;
 				e->timer = 0;
